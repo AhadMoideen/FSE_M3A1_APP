@@ -86,10 +86,14 @@ class LoginActivity : AppCompatActivity() {
                         editor.putString(FSEConstants.USERNAME,userResponse.userName)
                         val result = editor.commit()
 
-                        /* TODO: Re-direction based on the type user will be done in next */
-                        val loginIntend = Intent(this@LoginActivity, FacultyDashboardActivity::class.java)
-                        startActivityForResult(loginIntend, 1)
-                        /* TODO: if user is Student-redirect to Student dashboard  */
+                        /* Re-direction based on the type user will be done in next */
+                        if(userResponse.userType == "FACULTY"){
+                            val loginIntend = Intent(this@LoginActivity, FacultyDashboardActivity::class.java)
+                            startActivityForResult(loginIntend, 1)
+                        }else if(userResponse.userType == "STUDENT"){
+                            val loginIntend = Intent(this@LoginActivity, StudentDashboardActivity::class.java)
+                            startActivityForResult(loginIntend, 1)
+                        }
                     }
                     else{
                         Toast.makeText(
