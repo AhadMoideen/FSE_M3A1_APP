@@ -3,16 +3,24 @@ package com.ahad.fse.activities
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.ahad.fse.R
 import com.ahad.fse.adapters.EvaluationComponentAdapter
+import com.ahad.fse.api.RetrofitInstance
 import com.ahad.fse.models.CourseDetail
 import com.ahad.fse.models.EvaluationComponent
 import com.ahad.fse.models.Module
 import com.ahad.fse.models.Student
 import kotlinx.android.synthetic.main.activity_course_detail.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.Dispatchers.Main
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.lang.Exception
 
 class CourseDetailActivity : AppCompatActivity() {
 
@@ -23,9 +31,35 @@ class CourseDetailActivity : AppCompatActivity() {
         setContentView(R.layout.activity_course_detail)
 
         val bundle: Bundle? = intent.extras
-        /* TODO: API call to get Course details */
-        var courseDetail = getDummyCourseDetail()
-        populateDetails(courseDetail)
+        /* API call to get Course details */
+        val courseId = intent.getIntExtra(FSEConstants.COURSE_ID,0)
+        /* */
+        CoroutineScope(IO).launch {
+            try {
+                val response = RetrofitInstance.courseApiClient.getCourse(courseId.toLong())
+                withContext(Main){
+                    if (response.isSuccessful && response.body() != null) {
+                        val courseDetail = response.body();
+                        if (courseDetail != null) {
+                            populateDetails(courseDetail)
+                        }
+                        Toast.makeText(
+                            this@CourseDetailActivity,
+                            "Course: ${courseDetail?.courseName}",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    } else {
+                        Toast.makeText(
+                            this@CourseDetailActivity,
+                            "Error: ${response.message()}",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            }catch (e:Exception){
+                Toast.makeText(this@CourseDetailActivity,"Error: ${e.message}",Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     /**

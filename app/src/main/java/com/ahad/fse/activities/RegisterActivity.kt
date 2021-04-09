@@ -1,18 +1,26 @@
 package com.ahad.fse.activities
 
 import android.app.DatePickerDialog
+import android.content.Context
 import android.content.Intent
 import android.icu.text.SimpleDateFormat
 import android.icu.util.Calendar
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.Spinner
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import com.ahad.fse.R
+import com.ahad.fse.api.RetrofitInstance
+import com.ahad.fse.models.User
 import kotlinx.android.synthetic.main.activity_register.*
-import kotlinx.android.synthetic.main.activity_register.userType
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.lang.Exception
 import java.util.*
 
 class RegisterActivity : AppCompatActivity() {
@@ -55,11 +63,50 @@ class RegisterActivity : AppCompatActivity() {
             val confirmPassword = confirmPassword.text
             var type = findViewById<Spinner>(R.id.userType).selectedItem.toString()
 
-            /* TODO: Call API for registration */
+             val dateFormat = SimpleDateFormat("yyyy-MM-dd hh:mm:ss.SSS")
 
-            /* TODO: if success redirect to Login */
-            val loginIntend = Intent(this, LoginActivity::class.java)
-            startActivityForResult(loginIntend, 1)
+            /* API for registration */
+            val unregisteredUser = User(
+                Int.MIN_VALUE,
+                fullName.toString(),
+                username.toString(),
+                dateFormat.format(cal.getTime()),
+                type,
+                password.toString()
+            )
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val response = RetrofitInstance.userApiClient.register(unregisteredUser)
+                    withContext(Dispatchers.Main){
+
+                        val user = response.body();
+                        if (response.isSuccessful && user != null) {
+                            Toast.makeText(
+                                this@RegisterActivity,
+                                "Course: ${response.message()}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            /* TODO: if success redirect to Login */
+                            val loginIntend = Intent(this@RegisterActivity, LoginActivity::class.java)
+                            startActivityForResult(loginIntend, 1)
+
+                        } else {
+                            Toast.makeText(
+                                this@RegisterActivity,
+                                "Error: ${response.message()}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(
+                        this@RegisterActivity,
+                        "Error: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
         }
     }
 

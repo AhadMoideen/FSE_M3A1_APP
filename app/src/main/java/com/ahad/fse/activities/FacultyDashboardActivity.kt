@@ -4,14 +4,19 @@ import android.content.Context
 import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.ahad.fse.R
 import com.ahad.fse.adapters.CourseAdapter
+import com.ahad.fse.api.RetrofitInstance
 import com.ahad.fse.interfaces.OnItemClickListener
 import com.ahad.fse.models.Course
 import kotlinx.android.synthetic.main.activity_faculty_dashboard.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.lang.Exception
 
 class FacultyDashboardActivity : AppCompatActivity(), OnItemClickListener {
     private val TAG = "FACULTY-DASHBOARD"
@@ -24,6 +29,7 @@ class FacultyDashboardActivity : AppCompatActivity(), OnItemClickListener {
         /* Validate requirements for Dashboard */
         validation()
 
+        /* Logout configuration */
         btLogout.setOnClickListener {
             val sharedPref =
                 getSharedPreferences(FSEConstants.APP_SHARED_PREF, Context.MODE_PRIVATE)
@@ -43,10 +49,42 @@ class FacultyDashboardActivity : AppCompatActivity(), OnItemClickListener {
         /* Get username from shared-preference */
         val sharedPref = getSharedPreferences(FSEConstants.APP_SHARED_PREF, Context.MODE_PRIVATE)
         val username = sharedPref.getString(FSEConstants.USERNAME, "")
+        if(username!=null){
+           CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val response = RetrofitInstance.courseApiClient.getCoursesForUser(username)
+                    withContext(Dispatchers.Main){
+                        if (response.isSuccessful && response.body() != null) {
+                            val courses = response.body();
+                            if (courses != null) {
+                                this@FacultyDashboardActivity.courses = courses.toTypedArray()
+                                populateDetails(courses)
+                            }
+                            Toast.makeText(
+                                this@FacultyDashboardActivity,
+                                "Courses for : ${username}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        } else {
+                            Toast.makeText(
+                                this@FacultyDashboardActivity,
+                                "Error: ${response.message()}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                }catch (e: Exception){
+                    Toast.makeText(this@FacultyDashboardActivity,"Error: ${e.message}",Toast.LENGTH_SHORT).show()
+                }
+            }
 
-        val categories: Array<Course> = dummyCourses(username)
-        this.courses = dummyCourses(username)
-        recyclerCourses.adapter = CourseAdapter(categories.asList(), this)
+        }
+
+
+    }
+
+    private fun populateDetails(courses: List<Course>) {
+        recyclerCourses.adapter = CourseAdapter(courses, this)
         recyclerCourses.layoutManager = LinearLayoutManager(this)
         recyclerCourses.setHasFixedSize(true)
     }
@@ -56,7 +94,6 @@ class FacultyDashboardActivity : AppCompatActivity(), OnItemClickListener {
      */
     override fun onItemClick(position: Int) {
         /* Get username from shared-preference */
-        Toast.makeText(this, "Course: ${position}", Toast.LENGTH_SHORT).show()
         val clickedCourse = this.courses[position]
 
         val courseDetailIntent = Intent(this, CourseDetailActivity::class.java)

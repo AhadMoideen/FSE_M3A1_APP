@@ -6,8 +6,16 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.widget.ArrayAdapter
+import android.widget.Toast
 import com.ahad.fse.R
+import com.ahad.fse.api.RetrofitInstance
+import com.ahad.fse.models.User
 import kotlinx.android.synthetic.main.activity_login.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.lang.Exception
 
 class LoginActivity : AppCompatActivity() {
 
@@ -16,6 +24,7 @@ class LoginActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
+        validation()
         configureFields()
     }
 
@@ -44,16 +53,79 @@ class LoginActivity : AppCompatActivity() {
             var type = userType.selectedItem.toString()
 
             /* TODO: api call to validate */
-            val sharedPref = getSharedPreferences(FSEConstants.APP_SHARED_PREF,Context.MODE_PRIVATE)
-            val editor = sharedPref.edit()
-            editor.putString(FSEConstants.TOKEN, "TEST-TOKEN")
-            editor.putString(FSEConstants.USERNAME,"ahadmoideen@gmail.com")
-            val result = editor.commit()
+            val user = getUser(username.toString(), password.toString(), type);
 
-            /* TODO: Re-direction based on the type user will be done in next */
-            val loginIntend = Intent(this, FacultyDashboardActivity::class.java)
+        }
+    }
+
+    /**
+     * Function to call API and do
+     */
+    private fun getUser(username: String, password: String, userType: String): User {
+        val user =  User()
+        user.userName = username
+        user.userType = userType
+        user.password = password
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val loginUser = user
+                val response = RetrofitInstance.userApiClient.getCourse(user)
+                withContext(Dispatchers.Main){
+
+                val userResponse = response.body();
+                if (response.isSuccessful && userResponse != null) {
+                    if(loginUser.userType == userResponse.userType){
+                        Toast.makeText(
+                            this@LoginActivity,
+                            "Course: ${response.message()}",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        val sharedPref = getSharedPreferences(FSEConstants.APP_SHARED_PREF,Context.MODE_PRIVATE)
+                        val editor = sharedPref.edit()
+                        editor.putString(FSEConstants.TOKEN, userResponse.id.toString())
+                        editor.putString(FSEConstants.USERNAME,userResponse.userName)
+                        val result = editor.commit()
+
+                        /* TODO: Re-direction based on the type user will be done in next */
+                        val loginIntend = Intent(this@LoginActivity, FacultyDashboardActivity::class.java)
+                        startActivityForResult(loginIntend, 1)
+                        /* TODO: if user is Student-redirect to Student dashboard  */
+                    }
+                    else{
+                        Toast.makeText(
+                            this@LoginActivity,
+                            "Invalid access: ${loginUser.userType}",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                } else {
+                    Toast.makeText(
+                        this@LoginActivity,
+                        "Error: ${response.message()}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                 }
+            } catch (e: Exception) {
+                Toast.makeText(
+                    this@LoginActivity,
+                    "Error: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+        return User()
+    }
+
+    /**
+     * All validations can be added to this function
+     */
+    private fun validation() {
+        val sharedPref = getSharedPreferences(FSEConstants.APP_SHARED_PREF, Context.MODE_PRIVATE)
+        val token = sharedPref.getString(FSEConstants.TOKEN, "")
+        if (!token.isNullOrBlank() && !token.isNullOrEmpty()) {
+            val loginIntend = Intent(this@LoginActivity, FacultyDashboardActivity::class.java)
             startActivityForResult(loginIntend, 1)
-            /* TODO: if user is Student-redirect to Student dashboard  */
         }
     }
 }
